@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>최적화된 4K 지도 뷰어</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        body { margin: 0; padding: 0; background: #0a0a0a; overflow: hidden; }
+        #map { width: 100vw; height: 100vh; background: #0a0a0a; }
+
+        /* 하드웨어 가속 및 이미지 렌더링 설정 */
+        .leaflet-image-layer {
+            will-change: transform;
+            image-rendering: -webkit-optimize-contrast;
+            backface-visibility: hidden;
+        }
+
+        /* 범례(컨트롤) 스타일 - 왼쪽 상단으로 이동 및 크기 확대 */
+        .layer-control {
+            position: fixed; 
+            top: 20px;       /* 위쪽에서 20px */
+            left: 20px;      /* 왼쪽에서 20px */
+            background: rgba(0, 0, 0, 0.85); 
+            padding: 20px;   /* 안쪽 여백 확대 */
+            border-radius: 15px; 
+            color: white; 
+            z-index: 1000;
+            border: 1px solid #444; 
+            font-family: 'Malgun Gothic', sans-serif;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            min-width: 160px; /* 최소 너비 확보 */
+        }
+
+        .item { 
+            display: flex; 
+            align-items: center; 
+            margin-bottom: 15px; /* 항목 간 간격 확대 */
+            cursor: pointer; 
+            font-size: 18px;    /* 글자 크기 확대 */
+            font-weight: bold;
+        }
+        .item:last-child { margin-bottom: 0; }
+
+        /* 체크박스 크기 대폭 확대 (터치 편의성) */
+        input[type="checkbox"] { 
+            margin-right: 15px; 
+            width: 24px; 
+            height: 24px; 
+            cursor: pointer; 
+            accent-color: #4facfe; /* 체크박스 강조 색상 */
+        }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="layer-control">
+    <div style="margin-bottom: 15px; font-size: 14px; color: #aaa; border-bottom: 1px solid #444; padding-bottom: 5px;">몬스터 레이어</div>
+    <label class="item"><input type="checkbox" id="intellect" checked> <span style="color: #4facfe;">지성</span></label>
+    <label class="item"><input type="checkbox" id="feral" checked> <span style="color: #ff6b6b;">야성</span></label>
+    <label class="item"><input type="checkbox" id="nature" checked> <span style="color: #43e97b;">자연</span></label>
+</div>
+
+<script>
+    const imgConfig = {
+        base: 'map_base.webp',
+        intellect: 'layer_intellect.webp',
+        feral: 'layer_feral.webp',
+        nature: 'layer_nature.webp'
+    };
+
+    const tempImg = new Image();
+    tempImg.src = imgConfig.base;
+    tempImg.onload = function() {
+        const w = this.naturalWidth;
+        const h = this.naturalHeight;
+
+        const map = L.map('map', {
+            crs: L.CRS.Simple,
+            minZoom: -3,
+            maxZoom: 2,
+            zoomSnap: 0,
+            zoomDelta: 1,
+            wheelPxPerZoomLevel: 120,
+            fadeAnimation: false,
+            preferCanvas: true,
+            attributionControl: false
+        });
+
+        const bounds = [[0, 0], [h, w]];
+
+        // 레이어 생성
+        const baseLayer = L.imageOverlay(imgConfig.base, bounds).addTo(map);
+        const intellectLayer = L.imageOverlay(imgConfig.intellect, bounds).addTo(map);
+        const feralLayer = L.imageOverlay(imgConfig.feral, bounds).addTo(map);
+        const natureLayer = L.imageOverlay(imgConfig.nature, bounds).addTo(map);
+
+        // 초기 화면 정중앙 맞춤
+        map.fitBounds(bounds);
+
+        // 레이어 토글 함수
+        function bindToggle(id, layer) {
+            document.getElementById(id).addEventListener('change', function(e) {
+                if (e.target.checked) map.addLayer(layer);
+                else map.removeLayer(layer);
+            });
+        }
+
+        bindToggle('intellect', intellectLayer);
+        bindToggle('feral', feralLayer);
+        bindToggle('nature', natureLayer);
+        
+        setTimeout(() => { map.invalidateSize(); }, 200);
+    };
+</script>
+</body>
+</html>
