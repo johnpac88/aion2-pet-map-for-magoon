@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>마족/천족 선택형 게임 지도</title>
+    <title> 아이온2 펫작 지도 - 무닌 마군 </title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -12,65 +12,115 @@
 
         .leaflet-image-layer { will-change: transform; image-rendering: -webkit-optimize-contrast; }
 
+        /* 컨트롤 패널 스타일 */
         .layer-control {
             position: fixed; top: 20px; left: 20px;
-            background: rgba(0, 0, 0, 0.85); padding: 20px;
+            background: rgba(0, 0, 0, 0.9); 
             border-radius: 15px; color: white; z-index: 1000;
-            border: 1px solid #444; backdrop-filter: blur(8px);
-            min-width: 180px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            border: 1px solid #444; backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            transition: all 0.3s ease; /* 접고 펼칠 때 애니메이션 */
+            overflow: hidden;
+            width: 200px;
+        }
+
+        /* 접혔을 때 상태 */
+        .layer-control.collapsed {
+            width: 45px;
+            height: 45px;
+            padding: 0;
+            border-radius: 10px;
+        }
+
+        /* 메뉴 헤더 (접기/펼치기 버튼 영역) */
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .control-header span { font-weight: bold; font-size: 14px; }
+
+        /* 실제 내용물 영역 */
+        .control-content {
+            padding: 15px;
+            display: block;
+        }
+        .layer-control.collapsed .control-content { display: none; }
+        .layer-control.collapsed .control-header span { display: none; }
+        .layer-control.collapsed .control-header::after { 
+            content: '☰'; /* 접혔을 때 아이콘 */
+            font-size: 20px;
+            width: 100%;
+            text-align: center;
         }
 
         /* 진영 선택 버튼 */
         .faction-selector {
-            display: flex; gap: 5px; margin-bottom: 20px;
+            display: flex; gap: 5px; margin-bottom: 15px;
             background: #222; padding: 5px; border-radius: 8px;
         }
         .faction-btn {
-            flex: 1; padding: 10px; border: none; border-radius: 5px;
+            flex: 1; padding: 8px; border: none; border-radius: 5px;
             cursor: pointer; font-weight: bold; color: #888; background: transparent;
-            transition: 0.3s;
+            font-size: 13px;
         }
-        .faction-btn.active { background: #444; color: #fff; }
-        .faction-btn.asmo.active { background: #b83b3b; color: white; }  /* 마족 빨간색 */
-        .faction-btn.elyos.active { background: #4facfe; color: white; } /* 천족 파란색 */
+        .faction-btn.asmo.active { background: #b83b3b; color: white; }
+        .faction-btn.elyos.active { background: #4facfe; color: white; }
 
-        .item { display: flex; align-items: center; margin-bottom: 15px; cursor: pointer; font-size: 17px; }
+        .item { display: flex; align-items: center; margin-bottom: 15px; cursor: pointer; font-size: 16px; }
         input[type="checkbox"] { margin-right: 12px; width: 22px; height: 22px; accent-color: #ff6b6b; }
+
+        /* 닫기 텍스트 표시 */
+        .toggle-icon { font-size: 12px; color: #aaa; }
     </style>
 </head>
 <body>
 
 <div id="map"></div>
 
-<div class="layer-control">
-    <div class="faction-selector">
-        <button class="faction-btn asmo active" onclick="changeFaction('asmo')">마족</button>
-        <button class="faction-btn elyos" onclick="changeFaction('elyos')">천족</button>
+<div class="layer-control" id="main-control">
+    <div class="control-header" onclick="toggleMenu()">
+        <span>필터 설정</span>
+        <span class="toggle-icon" id="toggle-txt">접기 ▲</span>
     </div>
+    
+    <div class="control-content">
+        <div class="faction-selector">
+            <button class="faction-btn asmo active" onclick="changeFaction('asmo')">마족</button>
+            <button class="faction-btn elyos" onclick="changeFaction('elyos')">천족</button>
+        </div>
 
-    <div style="margin-bottom: 12px; font-size: 13px; color: #aaa; border-bottom: 1px solid #444; padding-bottom: 5px;">몬스터 필터</div>
-    <label class="item"><input type="checkbox" id="check-intellect" checked> 지성</label>
-    <label class="item"><input type="checkbox" id="check-feral" checked> 야성</label>
-    <label class="item"><input type="checkbox" id="check-nature" checked> 자연</label>
+        <div style="margin-bottom: 10px; font-size: 12px; color: #777;">몬스터 종류</div>
+        <label class="item"><input type="checkbox" id="check-intellect" checked> 지성</label>
+        <label class="item"><input type="checkbox" id="check-feral" checked> 야성</label>
+        <label class="item"><input type="checkbox" id="check-nature" checked> 자연</label>
+    </div>
 </div>
 
 <script>
-    const factions = {
-        asmo: {
-            base: 'asmo_base.webp',
-            intellect: 'asmo_intellect.webp',
-            feral: 'asmo_feral.webp',
-            nature: 'asmo_nature.webp'
-        },
-        elyos: {
-            base: 'elyos_base.webp',
-            intellect: 'elyos_intellect.webp',
-            feral: 'elyos_feral.webp',
-            nature: 'elyos_nature.webp'
+    // 메뉴 접기/펼치기 함수
+    function toggleMenu() {
+        const control = document.getElementById('main-control');
+        const txt = document.getElementById('toggle-txt');
+        control.classList.toggle('collapsed');
+        
+        if(control.classList.contains('collapsed')) {
+            txt.style.display = 'none';
+        } else {
+            txt.style.display = 'inline';
+            txt.innerText = '접기 ▲';
         }
+    }
+
+    const factions = {
+        asmo: { base: 'asmo_base.webp', intellect: 'asmo_intellect.webp', feral: 'asmo_feral.webp', nature: 'asmo_nature.webp' },
+        elyos: { base: 'elyos_base.webp', intellect: 'elyos_intellect.webp', feral: 'elyos_feral.webp', nature: 'elyos_nature.webp' }
     };
 
-    // 초기 진영을 'asmo'(마족)로 설정
     let map, layers = {}, currentFaction = 'asmo';
 
     function initMap() {
@@ -88,19 +138,16 @@
                 });
             }
 
-            // 레이어 초기화
             if (layers.base) map.removeLayer(layers.base);
             if (layers.intellect) map.removeLayer(layers.intellect);
             if (layers.feral) map.removeLayer(layers.feral);
             if (layers.nature) map.removeLayer(layers.nature);
 
-            // 현재 진영 이미지 적용
             layers.base = L.imageOverlay(factions[currentFaction].base, bounds).addTo(map);
             layers.intellect = L.imageOverlay(factions[currentFaction].intellect, bounds);
             layers.feral = L.imageOverlay(factions[currentFaction].feral, bounds);
             layers.nature = L.imageOverlay(factions[currentFaction].nature, bounds);
 
-            // 체크 상태 유지
             if (document.getElementById('check-intellect').checked) layers.intellect.addTo(map);
             if (document.getElementById('check-feral').checked) layers.feral.addTo(map);
             if (document.getElementById('check-nature').checked) layers.nature.addTo(map);
@@ -110,14 +157,12 @@
     }
 
     function changeFaction(faction) {
+        event.stopPropagation(); // 부모 클릭(메뉴 접기) 방지
         currentFaction = faction;
         document.querySelectorAll('.faction-btn').forEach(btn => btn.classList.remove('active'));
         document.querySelector(`.faction-btn.${faction}`).classList.add('active');
-        
-        // 체크박스 강조 색상 변경 (디테일)
         const checkColor = faction === 'asmo' ? '#ff6b6b' : '#4facfe';
         document.querySelectorAll('input[type="checkbox"]').forEach(ck => ck.style.accentColor = checkColor);
-        
         initMap();
     }
 
